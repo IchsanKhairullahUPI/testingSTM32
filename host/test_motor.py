@@ -6,7 +6,7 @@ Python <-> STM32 communication works end-to-end.
 import serial
 import time
 
-COM_PORT = "COM3"  # <-- CHANGE to whatever your Device Manager shows
+COM_PORT = "COM5"  # <-- CHANGE to whatever your Device Manager shows
 
 def send_and_read(mcu, command, timeout=5):
     """Send a line, read responses until timeout or DONE."""
