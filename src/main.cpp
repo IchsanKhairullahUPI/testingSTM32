@@ -1,45 +1,67 @@
 #include <Arduino.h>
+#include "motor.h"
+#include "config.h"
 
-#define DIR_PIN PB1
-#define PUL_PIN PB0
+void processCommand(String line) {
+  line.trim();
 
-const long pulsesPerRev = 6400;
-int pulseDelay = 200;
+  if (line == "status") {
+    printStatus();
+    return;
+  }
 
-void pulseSteps(long steps, bool clockwise) {
-  digitalWrite(DIR_PIN, clockwise ? LOW : HIGH);
-  delayMicroseconds(50);  // give DIR time to settle before pulses
-  for (long i = 0; i < steps; i++) {
-    digitalWrite(PUL_PIN, HIGH);
-    delayMicroseconds(pulseDelay);
-    digitalWrite(PUL_PIN, LOW);
-    delayMicroseconds(pulseDelay);
+  if (line == "home") {
+    homeAllMotors();
+    Serial.println("HOMED");
+    return;
+  }
+
+  int colon = line.indexOf(':');
+  if (colon > 0) {
+    int motorIdx = line.substring(0, colon).toInt();
+    long steps = line.substring(colon + 1).toInt();
+    if (motorIdx >= 0 && motorIdx < NUM_MOTORS) {
+      moveMotor(motorIdx, steps);
+      Serial.print("M");
+      Serial.print(motorIdx);
+      Serial.print(" target now ");
+      Serial.println(motors[motorIdx].targetPosition);
+    }
+  }
+}
+
+void readSerial() {
+  static String inputBuffer = "";
+  static unsigned long lastByteMillis = 0;
+  const unsigned long LINE_TIMEOUT_MS = 100;
+
+  while (Serial.available()) {
+    char c = Serial.read();
+    lastByteMillis = millis();
+    if (c == '\n' || c == '\r') {
+      if (inputBuffer.length() > 0) {
+        processCommand(inputBuffer);
+        inputBuffer = "";
+      }
+    } else {
+      inputBuffer += c;
+    }
+  }
+
+  if (inputBuffer.length() > 0 && (millis() - lastByteMillis > LINE_TIMEOUT_MS)) {
+    processCommand(inputBuffer);
+    inputBuffer = "";
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  pinMode(DIR_PIN, OUTPUT);
-  pinMode(PUL_PIN, OUTPUT);
-  digitalWrite(DIR_PIN, LOW);
-  digitalWrite(PUL_PIN, LOW);
+  initMotors();
   while (!Serial) { delay(10); }
   Serial.println("READY");
 }
 
 void loop() {
-  if (Serial.available()) {
-    String line = Serial.readStringUntil('\n');
-    line.trim();
-    long steps = line.toInt();
-    if (steps != 0) {
-      bool clockwise = (steps > 0);
-      long absSteps = abs(steps);
-      Serial.print("moving ");
-      Serial.print(steps);
-      Serial.println(" pulses...");
-      pulseSteps(absSteps, clockwise);
-      Serial.println("DONE");
-    }
-  }
+  readSerial();
+  serviceAllMotors();
 }
