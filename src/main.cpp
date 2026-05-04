@@ -16,6 +16,32 @@ void processCommand(String line) {
     return;
   }
 
+  if (line.startsWith("pulse:")) {
+    int colon1 = line.indexOf(':');
+    int colon2 = line.indexOf(':', colon1 + 1);
+    if (colon2 > 0) {
+      int motorIdx = line.substring(colon1+1, colon2).toInt();
+      long count = line.substring(colon2+1).toInt();
+      if (motorIdx >= 0 && motorIdx < NUM_MOTORS) {
+        Motor &m = motors[motorIdx];
+        Serial.print("Pulsing M");
+        Serial.print(motorIdx);
+        Serial.print(" ");
+        Serial.print(count);
+        Serial.println(" times (blocking)...");
+        digitalWrite(m.dirPin, LOW);
+        delayMicroseconds(50);
+        for (long i = 0; i < count; i++) {
+          digitalWrite(m.pulPin, HIGH);
+          delayMicroseconds(200);
+          digitalWrite(m.pulPin, LOW);
+          delayMicroseconds(200);
+        }
+        Serial.println("DONE");
+      }
+    }
+  }
+
   int colon = line.indexOf(':');
   if (colon > 0) {
     int motorIdx = line.substring(0, colon).toInt();
